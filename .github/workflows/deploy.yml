@@ -1,4 +1,4 @@
-name: ci自动化部署到windows服务器
+name: ci自动化部署到服务器
 
 on:
   push:
@@ -20,27 +20,23 @@ jobs:
       with:
         node-version: '20.19.0'
 
-    - name: Cache pnpm store
+    - name: Cache dependencies
       uses: actions/cache@v4
       with:
         path: |
-          ~/.pnpm-store
           node_modules
           .next
           .nuxt
           .output
-        key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+        key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
         restore-keys: |
-          ${{ runner.os }}-pnpm-
-
-    - name: Install pnpm
-      run: npm install -g pnpm
+          ${{ runner.os }}-npm-
 
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile  # 使用固定锁文件，避免解析
+      run: npm ci  # 使用 npm ci 替代 pnpm install --frozen-lockfile
 
     - name: Build project
-      run: pnpm build:h5
+      run: npm run build  # 使用 npm 运行构建脚本
 
     - name: Install sshpass efficiently
       run: |
@@ -51,47 +47,36 @@ jobs:
       run: |
         # 准备部署文件
         echo "构建完成，准备部署..."
-        echo "H5 构建输出目录:"
-        du -sh dist/build/h5/  # 显示 H5 构建产物大小
-        echo "目录结构:"
-        ls -la dist/build/h5/
+        du -sh dist/  # 显示构建产物大小
 
     - name: Deploy with optimized transfer
       env:
         REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
         REMOTE_USER: ${{ secrets.REMOTE_USER }}
         REMOTE_PASSWORD: ${{ secrets.REMOTE_PASSWORD }}
-        TARGET_DIR: ${{ secrets.TARGET_DIR }}
+        TARGET_DIR: ${{ secrets.REMOTE_TARGET }}
       run: |
         echo "=== 开始优化部署 ==="
         set -e  # 遇到错误立即退出
-
-        # 检查 H5 构建产物是否存在
-        if [ ! -d "dist/build/h5" ]; then
-          echo "❌ 错误: dist/build/h5 目录不存在"
-          echo "当前目录结构:"
-          find dist/ -type d | sort
-          exit 1
-        fi
 
         # 并行执行：同时创建目录和准备传输
         echo "创建目标目录..."
         sshpass -p "$REMOTE_PASSWORD" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$REMOTE_USER@$REMOTE_HOST" "if not exist \"$TARGET_DIR\" mkdir \"$TARGET_DIR\"" &
 
         # 压缩构建产物（如果文件较多）
-        if [ $(find dist/build/h5/ -type f | wc -l) -gt 10 ]; then
+        if [ $(find dist/ -type f | wc -l) -gt 10 ]; then
           echo "文件较多，启用压缩传输..."
-          tar -czf h5-build.tar.gz -C dist/build/h5 .
-          sshpass -p "$REMOTE_PASSWORD" scp -o StrictHostKeyChecking=no h5-build.tar.gz "$REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/"
-          sshpass -p "$REMOTE_PASSWORD" ssh -o StrictHostKeyChecking=no "$REMOTE_USER@$REMOTE_HOST" "cd \"$TARGET_DIR\" && tar -xzf h5-build.tar.gz && del dist.tar.gz"
-          rm -f h5-build.tar.gz
+          tar -czf dist.tar.gz -C dist .
+          sshpass -p "$REMOTE_PASSWORD" scp -o StrictHostKeyChecking=no dist.tar.gz "$REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/"
+          sshpass -p "$REMOTE_PASSWORD" ssh -o StrictHostKeyChecking=no "$REMOTE_USER@$REMOTE_HOST" "cd \"$TARGET_DIR\" && tar -xzf dist.tar.gz && del dist.tar.gz"
+          rm -f dist.tar.gz
         else
           # 直接传输，使用压缩和并行
-          echo "直接传输 H5 文件..."
-          sshpass -p "$REMOTE_PASSWORD" scp -o StrictHostKeyChecking=no -C -r ./dist/build/h5/* "$REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/" &
+          echo "直接传输文件..."
+          sshpass -p "$REMOTE_PASSWORD" scp -o StrictHostKeyChecking=no -C -r ./dist/* "$REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/" &
         fi
 
         # 等待所有后台任务完成
         wait
 
-        echo "✅ H5 构建产物部署完成！"
+        echo "✅ 部署完成！"
