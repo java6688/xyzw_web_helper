@@ -19,6 +19,7 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20.19.0'
+        cache: 'npm'  # 启用 npm 缓存
 
     - name: Cache dependencies
       uses: actions/cache@v4
@@ -47,17 +48,28 @@ jobs:
       run: |
         # 准备部署文件
         echo "构建完成，准备部署..."
-        du -sh dist/  # 显示构建产物大小
+        echo "H5 构建输出目录:"
+        du -sh dist  # 显示 H5 构建产物大小
+        echo "目录结构:"
+        ls -la dist
 
     - name: Deploy with optimized transfer
       env:
         REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
         REMOTE_USER: ${{ secrets.REMOTE_USER }}
         REMOTE_PASSWORD: ${{ secrets.REMOTE_PASSWORD }}
-        TARGET_DIR: ${{ secrets.REMOTE_TARGET }}
+        TARGET_DIR: ${{ secrets.TARGET_DIR }}
       run: |
         echo "=== 开始优化部署 ==="
         set -e  # 遇到错误立即退出
+
+        # 检查 H5 构建产物是否存在
+        if [ ! -d "dist" ]; then
+          echo "❌ 错误: dist 目录不存在"
+          echo "当前目录结构:"
+          find dist/ -type d | sort
+          exit 1
+        fi
 
         # 并行执行：同时创建目录和准备传输
         echo "创建目标目录..."
@@ -66,17 +78,17 @@ jobs:
         # 压缩构建产物（如果文件较多）
         if [ $(find dist/ -type f | wc -l) -gt 10 ]; then
           echo "文件较多，启用压缩传输..."
-          tar -czf dist.tar.gz -C dist .
-          sshpass -p "$REMOTE_PASSWORD" scp -o StrictHostKeyChecking=no dist.tar.gz "$REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/"
-          sshpass -p "$REMOTE_PASSWORD" ssh -o StrictHostKeyChecking=no "$REMOTE_USER@$REMOTE_HOST" "cd \"$TARGET_DIR\" && tar -xzf dist.tar.gz && del dist.tar.gz"
-          rm -f dist.tar.gz
+          tar -czf h5-build.tar.gz -C dist .
+          sshpass -p "$REMOTE_PASSWORD" scp -o StrictHostKeyChecking=no h5-build.tar.gz "$REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/"
+          sshpass -p "$REMOTE_PASSWORD" ssh -o StrictHostKeyChecking=no "$REMOTE_USER@$REMOTE_HOST" "cd \"$TARGET_DIR\" && tar -xzf h5-build.tar.gz && del h5-build.tar.gz"
+          rm -f h5-build.tar.gz
         else
           # 直接传输，使用压缩和并行
-          echo "直接传输文件..."
+          echo "直接传输 H5 文件..."
           sshpass -p "$REMOTE_PASSWORD" scp -o StrictHostKeyChecking=no -C -r ./dist/* "$REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/" &
         fi
 
         # 等待所有后台任务完成
         wait
 
-        echo "✅ 部署完成！"
+        echo "✅ H5 构建产物部署完成！"
