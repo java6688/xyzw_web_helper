@@ -1028,7 +1028,7 @@ export const useTokenStore = defineStore('tokens', () => {
     // }
 
     // 清理过期token
-    cleanExpiredTokens()
+    // cleanExpiredTokens()
     // 启动连接监控
     connectionMonitor.startMonitoring()
 
