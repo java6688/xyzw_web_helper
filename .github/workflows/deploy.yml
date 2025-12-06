@@ -55,8 +55,8 @@ jobs:
         echo "TARGET_DIR=$TARGET_DIR" >> $GITHUB_ENV
     - name: Install lftp
       run: sudo apt-get update && sudo apt-get install -y lftp
-    - name: Upload app_1 (SFTP mirror, skip existing)
+    - name: Upload xyzw (SFTP mirror, skip existing)
       run: |
-        lftp -u "${{ vars.SFTP_USERNAME }}","${{ secrets.SFTP_PASSWORD }}" -p ${{ vars.SFTP_PORT }} sftp://${{ vars.SFTP_HOST }} -e "set sftp:auto-confirm yes; set net:timeout 30; set net:max-retries 2; mkdir -p $TARGET_DIR; mirror -R -n apps/app_1/dist/ $TARGET_DIR; bye"
+        lftp -u "${{ vars.SFTP_USERNAME }}","${{ secrets.SFTP_PASSWORD }}" -p ${{ vars.SFTP_PORT }} sftp://${{ vars.SFTP_HOST }} -e "set sftp:auto-confirm yes; set net:timeout 30; set net:max-retries 2; mkdir -p $TARGET_DIR; mirror -R -n dist/ $TARGET_DIR; bye"
       env:
         TARGET_DIR: ${{ env.TARGET_DIR }}
