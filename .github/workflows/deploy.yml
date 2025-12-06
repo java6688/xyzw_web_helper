@@ -1,4 +1,4 @@
-name: ci自动化部署到服务器
+name: cd自动化部署到ftp服务器
 
 on:
   push:
@@ -50,9 +50,9 @@ jobs:
         if [ -z "${{ secrets.SFTP_PASSWORD }}" ]; then echo "::error::SFTP_PASSWORD secret not set"; exit 1; fi
         if [ -z "${{ vars.SFTP_PORT }}" ]; then echo "::warning::SFTP_PORT variable not set, defaulting to 21"; fi
         if [ -z "${{ vars.TARGET_DIR }}" ]; then echo "::error::TARGET_DIR variable not set"; exit 1; fi
-        APP1_DIR="${{ vars.TARGET_DIR }}"
-        case "$APP1_DIR" in */) ;; *) APP1_DIR="$APP1_DIR/";; esac
-        echo "APP1_DIR=$APP1_DIR" >> $GITHUB_ENV
+        TARGET_DIR="${{ vars.TARGET_DIR }}"
+        case "$TARGET_DIR" in */) ;; *) TARGET_DIR="$TARGET_DIR/";; esac
+        echo "TARGET_DIR=$TARGET_DIR" >> $GITHUB_ENV
 
     - name: Install lftp
       run: sudo apt-get update && sudo apt-get install -y lftp
@@ -68,7 +68,7 @@ jobs:
 
     - name: Deploy via FTP using lftp
       env:
-        APP1_DIR: ${{ env.APP1_DIR }}
+        TARGET_DIR: ${{ env.TARGET_DIR }}
       run: |
         echo "开始通过 FTP 部署"
         set -e
@@ -78,4 +78,4 @@ jobs:
         fi
         FTP_PORT="${{ vars.SFTP_PORT }}"
         if [ -z "$FTP_PORT" ]; then FTP_PORT=21; fi
-        lftp -u "${{ vars.SFTP_USERNAME }}","${{ secrets.SFTP_PASSWORD }}" -p $FTP_PORT ftp://${{ vars.SFTP_HOST }} -e "set ftp:passive-mode true; set net:timeout 30; set net:max-retries 2; mkdir -p $APP1_DIR; mirror -R -n dist/ $APP1_DIR; bye"
+        lftp -u "${{ vars.SFTP_USERNAME }}","${{ secrets.SFTP_PASSWORD }}" -p $FTP_PORT ftp://${{ vars.SFTP_HOST }} -e "set ftp:passive-mode true; set net:timeout 30; set net:max-retries 2; mkdir -p $TARGET_DIR; mirror -R -n dist/ $TARGET_DIR; bye"
