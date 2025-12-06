@@ -44,38 +44,19 @@ jobs:
       run: pnpm run build  # 使用 pnpm 运行构建脚本
 
     - name: Validate SFTP variables and secret
-      run: |
-        if [ -z "${{ vars.SFTP_HOST }}" ]; then echo "::error::SFTP_HOST variable not set"; exit 1; fi
-        if [ -z "${{ vars.SFTP_USERNAME }}" ]; then echo "::error::SFTP_USERNAME variable not set"; exit 1; fi
-        if [ -z "${{ secrets.SFTP_PASSWORD }}" ]; then echo "::error::SFTP_PASSWORD secret not set"; exit 1; fi
-        if [ -z "${{ vars.SFTP_PORT }}" ]; then echo "::warning::SFTP_PORT variable not set, defaulting to 21"; fi
-        if [ -z "${{ vars.TARGET_DIR }}" ]; then echo "::error::TARGET_DIR variable not set"; exit 1; fi
-        TARGET_DIR="${{ vars.TARGET_DIR }}"
-        case "$TARGET_DIR" in */) ;; *) TARGET_DIR="$TARGET_DIR/";; esac
-        echo "TARGET_DIR=$TARGET_DIR" >> $GITHUB_ENV
-
-    - name: Install lftp
-      run: sudo apt-get update && sudo apt-get install -y lftp
-
-    - name: Parallel deployment preparation
-      run: |
-        # 准备部署文件
-        echo "构建完成，准备部署..."
-        echo "H5 构建输出目录:"
-        du -sh dist  # 显示 H5 构建产物大小
-        echo "目录结构:"
-        ls -la dist
-
-    - name: Deploy via FTP using lftp
-      env:
-        TARGET_DIR: ${{ env.TARGET_DIR }}
-      run: |
-        echo "开始通过 FTP 部署"
-        set -e
-        if [ ! -d "dist" ]; then
-          echo "dist 目录不存在"
-          exit 1
-        fi
-        FTP_PORT="${{ vars.SFTP_PORT }}"
-        if [ -z "$FTP_PORT" ]; then FTP_PORT=21; fi
-        lftp -u "${{ vars.SFTP_USERNAME }}","${{ secrets.SFTP_PASSWORD }}" -p $FTP_PORT ftp://${{ vars.SFTP_HOST }} -e "set ftp:passive-mode true; set net:timeout 30; set net:max-retries 2; mkdir -p $TARGET_DIR; mirror -R -n dist/ $TARGET_DIR; bye"
+        run: |
+          if [ -z "${{ vars.SFTP_HOST }}" ]; then echo "::error::SFTP_HOST variable not set"; exit 1; fi
+          if [ -z "${{ vars.SFTP_USERNAME }}" ]; then echo "::error::SFTP_USERNAME variable not set"; exit 1; fi
+          if [ -z "${{ secrets.SFTP_PASSWORD }}" ]; then echo "::error::SFTP_PASSWORD secret not set"; exit 1; fi
+          if [ -z "${{ vars.SFTP_PORT }}" ]; then echo "::error::SFTP_PORT variable not set"; exit 1; fi
+          if [ -z "${{ vars.SFTP_TARGET_DIR }}" ]; then echo "::error::SFTP_TARGET_DIR variable not set"; exit 1; fi
+          TARGET_DIR="${{ vars.SFTP_TARGET_DIR }}"
+          case "$TARGET_DIR" in */) ;; *) TARGET_DIR="$TARGET_DIR/";; esac
+          echo "TARGET_DIR=$TARGET_DIR" >> $GITHUB_ENV
+      - name: Install lftp
+        run: sudo apt-get update && sudo apt-get install -y lftp
+      - name: Upload app_1 (SFTP mirror, skip existing)
+        run: |
+          lftp -u "${{ vars.SFTP_USERNAME }}","${{ secrets.SFTP_PASSWORD }}" -p ${{ vars.SFTP_PORT }} sftp://${{ vars.SFTP_HOST }} -e "set sftp:auto-confirm yes; set net:timeout 30; set net:max-retries 2; mkdir -p $TARGET_DIR; mirror -R -n apps/app_1/dist/ $TARGET_DIR; bye"
+        env:
+          TARGET_DIR: ${{ env.TARGET_DIR }}
