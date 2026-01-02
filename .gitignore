@@ -73,3 +73,7 @@ temp/
 
 # .github
 package-lock.json
+.github
+*.bat
+*.exe
+node_modules/

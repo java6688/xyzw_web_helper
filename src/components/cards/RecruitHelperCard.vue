@@ -1,7 +1,7 @@
 <template>
     <MyCard class="helper" :statusClass="{ active: state.isRunning }">
         <template #icon>
-            <img src="/icons/zml.png" alt="招募图标" />
+            <img :src="iconPath" alt="招募图标" />
         </template>
         <template #title>
             <h3>招募助手</h3>
@@ -42,13 +42,16 @@ import MyCard from "../Common/MyCard.vue";
 const tokenStore = useTokenStore();
 const message = useMessage();
 
+const iconPath = computed(() => import.meta.env.BASE_URL + "icons/zml.png");
+
 const roleInfo = computed(() => tokenStore.gameData?.roleInfo || null);
 
 const dataList = computed(() => {
+    const getImgPath = path => import.meta.env.BASE_URL + path.replace(/^\//, "");
     return [
         {
             type: "招募令",
-            img: "/icons/zml.png",
+            img: getImgPath("/icons/zml.png"),
             count: roleInfo.value?.role?.items?.[1001]?.quantity || 0,
         },
     ];
@@ -85,6 +88,8 @@ const handleHelper = async () => {
             const result = await tokenStore.sendMessageWithPromise(tokenId, "hero_recruit", { recruitType: 1, recruitNumber: remainder });
         }
         await tokenStore.sendMessage(tokenId, "role_getroleinfo");
+        // 更新活动进度
+        tokenStore.sendMessage(tokenId, "activity_get");
         message.success("招募完毕");
         state.value.isRunning = false;
         return;
@@ -97,26 +102,32 @@ const handleHelper = async () => {
     padding: 10px 0;
     display: flex;
     flex-direction: column;
+
     .list {
         display: flex;
         align-items: center;
         justify-content: space-around;
+
         .item {
             display: flex;
             flex-direction: column;
             align-items: center;
+
             > img {
                 width: 40px;
                 height: 40px;
             }
+
             .box-info {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
+
                 .box-type {
                     font-weight: bold;
                     margin-top: 4px;
                 }
+
                 .box-count {
                     margin-top: 2px;
                     color: #666;
@@ -124,6 +135,7 @@ const handleHelper = async () => {
             }
         }
     }
+
     .selects {
         display: flex;
         align-items: center;

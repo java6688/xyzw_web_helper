@@ -1,5 +1,5 @@
 <template>
-  <MyCard class="club-info" :statusClass="{ active: !!club }">
+  <MyCard class="club-info" :statusClass="{ active: !!club }" >
     <template #icon>
       <img src="/icons/1733492491706152.png" alt="俱乐部图标">
     </template>
@@ -31,7 +31,7 @@
                 <n-avatar :size="48" :src="club.logo || '/icons/xiaoyugan.png'" />
                 <div class="meta">
                   <div class="name">{{ club.name }}</div>
-                  <div class="sub">ID {{ club.id }} · Lv.{{ club.level }} · 服务器 {{ club.serverId }}</div>
+                  <div class="sub">ID {{ club.id }} · Lv.{{ club.level }} · 服务器 {{ club.serverId - 27 }}</div>
                 </div>
               </div>
               <div class="overview-actions">
@@ -47,17 +47,18 @@
                   <div class="value">{{ formatNumber(clubOverview.power) }}</div>
                 </div>
                 <div class="item">
-                  <div class="label">段位</div>
-                  <div class="value">{{ clubOverview.dan }}</div>
-                </div>
-                <div class="item">
                   <div class="label">成员数</div>
                   <div class="value">{{ memberCount }}</div>
                 </div>
                 <div class="item">
-                  <div class="label">红粹数量</div>
+                  <div class="label">红粹</div>
                   <div class="value">{{ clubOverview.redQuench }}</div>
                 </div>
+                <div class="item">
+                  <div class="label">Boss血量</div>
+                  <div class="value">{{ clubOverview.currentHP }}</div>
+                </div>
+
 
               </div>
               <div v-if="club.announcement" class="announcement">
@@ -80,15 +81,15 @@
                 <div v-for="m in topMembers" :key="m.roleId" class="member-row">
                   <div class="left">
                     <n-avatar :size="28" :src="m.headImg || '/icons/xiaoyugan.png'" />
-                    <span class="name">{{ m.name }}</span>
+                    <span class="name">{{ m.name }}(ID:{{ m.roleId }})</span>
                   </div>
                   <div class="right">
                     <span class="power">{{ formatNumber(m.power || m.custom?.s_power || 0) }}</span>
+                    <span class="red-quench">{{ redQuenchlabel(m.custom?.red_quench_cnt || 0) }}</span>
                     <span class="tag">{{ jobLabel(m.job) }}</span>
                   </div>
                 </div>
               </div>
-              <div v-if="memberCount > topMembers.length" class="hint">仅显示前 {{ topMembers.length }} 名(按战力)</div>
             </div>
           </n-tab-pane>
 
@@ -100,7 +101,7 @@
             <ClubHistoryRecords inline />
           </n-tab-pane>
 
-          
+
         </n-tabs>
       </div>
     </template>
@@ -133,7 +134,7 @@ const leader = computed(() => {
 const topMembers = computed(() => {
   return [...members.value]
     .sort((a, b) => (Number(b.power || b.custom?.s_power || 0) - Number(a.power || a.custom?.s_power || 0)))
-    .slice(0, 20)
+    .slice(0, 30)
 })
 
 const activeTab = ref('overview')
@@ -160,6 +161,7 @@ const signInLegion = () => {
 const clubOverview = computed(() => {
   const i = info.value || {}
   const base = i.info || {}
+  const boss = base.currentBoss || {}
   const stats = i.statistics || i.stat || {}
 
   const power = Number(
@@ -174,7 +176,9 @@ const clubOverview = computed(() => {
   )
   const noApply = Boolean(base.noApply ?? i.noApply)
 
-  return { power, dan: dan ?? '-', redQuench, lastWarRank, noApply }
+  const currentHP = formatNumber(boss.currentHP || 0)
+
+  return { power, dan: dan ?? '-', redQuench, lastWarRank, noApply, currentHP }
 })
 
 const refreshClub = () => {
@@ -189,8 +193,13 @@ const jobLabel = (job) => {
   return '成员'
 }
 
+const redQuenchlabel = (redQuenchl) => {
+  return redQuenchl + '红'
+}
+
 const formatNumber = (num) => {
   const n = Number(num || 0)
+  if (n >= 1e12) return (n / 1e12).toFixed(2) + '兆';
   if (n >= 1e8) return (n / 1e8).toFixed(2) + '亿'
   if (n >= 1e4) return (n / 1e4).toFixed(2) + '万'
   return String(n)
@@ -240,6 +249,25 @@ const formatNumber = (num) => {
     gap: var(--spacing-md);
   }
 
+  @media (max-width: 768px) {
+    .grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--spacing-sm);
+    }
+
+    .member-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .member-row .right {
+      width: 100%;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+  }
+
   .item {
     background: var(--bg-tertiary);
     border-radius: var(--border-radius-medium);
@@ -281,7 +309,7 @@ const formatNumber = (num) => {
 
   .member-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     padding: 8px;
     border-radius: 8px;
@@ -306,6 +334,11 @@ const formatNumber = (num) => {
   }
 
   .member-row .power {
+    font-feature-settings: 'tnum' 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .member-row .red-quench {
     font-feature-settings: 'tnum' 1;
     font-variant-numeric: tabular-nums;
   }
@@ -336,8 +369,17 @@ const formatNumber = (num) => {
 
 .status-info {
   flex: 1;
-  h3 { margin: 0; font-size: var(--font-size-lg); }
-  p { margin: 0; color: var(--text-secondary); font-size: var(--font-size-sm); }
+
+  h3 {
+    margin: 0;
+    font-size: var(--font-size-lg);
+  }
+
+  p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+  }
 }
 
 .status-badge {

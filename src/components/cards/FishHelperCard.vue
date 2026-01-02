@@ -1,7 +1,7 @@
 <template>
     <MyCard class="helper" :statusClass="{ active: state.isRunning }">
         <template #icon>
-            <img src="/fish/hjyg.png" alt="普通鱼竿图标" />
+            <img :src="iconPath" alt="普通鱼竿图标" />
         </template>
         <template #title>
             <h3>钓鱼助手</h3>
@@ -43,18 +43,23 @@ import MyCard from "../Common/MyCard.vue";
 const tokenStore = useTokenStore();
 const message = useMessage();
 
+const iconPath = computed(() => {
+    return import.meta.env.BASE_URL + "fish/hjyg.png";
+});
+
 const roleInfo = computed(() => tokenStore.gameData?.roleInfo || null);
 
 const dataList = computed(() => {
+    const getImgPath = path => import.meta.env.BASE_URL + path.replace(/^\//, "");
     return [
         {
             type: "普通鱼竿",
-            img: "/fish/ptyg.png",
+            img: getImgPath("/fish/ptyg.png"),
             count: roleInfo.value?.role?.items?.[1011]?.quantity || 0,
         },
         {
             type: "黄金鱼竿",
-            img: "/fish/hjyg.png",
+            img: getImgPath("/fish/hjyg.png"),
             count: roleInfo.value?.role?.items?.[1012]?.quantity || 0,
         },
     ];
@@ -103,6 +108,8 @@ const handleHelper = async () => {
             });
         }
         await tokenStore.sendMessage(tokenId, "role_getroleinfo");
+        // 更新活动进度
+        tokenStore.sendMessage(tokenId, "activity_get");
         message.success("钓鱼完毕");
         state.value.isRunning = false;
         return;
@@ -115,26 +122,32 @@ const handleHelper = async () => {
     padding: 10px 0;
     display: flex;
     flex-direction: column;
+
     .list {
         display: flex;
         align-items: center;
         justify-content: space-around;
+
         .item {
             display: flex;
             flex-direction: column;
             align-items: center;
+
             > img {
                 width: 40px;
                 height: 40px;
             }
+
             .box-info {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
+
                 .box-type {
                     font-weight: bold;
                     margin-top: 4px;
                 }
+
                 .box-count {
                     margin-top: 2px;
                     color: #666;
@@ -142,6 +155,7 @@ const handleHelper = async () => {
             }
         }
     }
+
     .selects {
         display: flex;
         align-items: center;
