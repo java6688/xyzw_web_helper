@@ -19,7 +19,7 @@ declare interface TokenData {
   wsUrl: string | null; // 可选的自定义WebSocket URL
   server: string;
   remark?: string; // 备注信息
-  importMethod?: 'manual' | 'bin' | 'url'; // 导入方式：manual（手动）、bin文件或url链接
+  importMethod?: "manual" | "bin" | "url"; // 导入方式：manual（手动）、bin文件或url链接
   sourceUrl?: string; // 当importMethod为url时，存储url链接
   upgradedToPermanent?: boolean; // 是否升级为长期有效
   upgradedAt?: string; // 升级时间
@@ -319,7 +319,7 @@ export const useTokenStore = defineStore("tokens", () => {
           const gameToken = gameTokens.value.find((t) => t.id === tokenId);
           console.log(gameToken);
           if (gameToken) {
-            if (gameToken.importMethod === 'url' && gameToken.sourceUrl) {
+            if (gameToken.importMethod === "url" && gameToken.sourceUrl) {
               // URL形式token刷新
               try {
                 const response = await fetch(gameToken.sourceUrl);
@@ -1035,7 +1035,11 @@ export const useTokenStore = defineStore("tokens", () => {
     const cleanedTokens = gameTokens.value.filter((token) => {
       // URL和bin文件导入的token设为长期有效，不会过期
       // 升级为长期有效的token也不会过期
-      if (token.importMethod === "url" || token.importMethod === "bin" || token.upgradedToPermanent) {
+      if (
+        token.importMethod === "url" ||
+        token.importMethod === "bin" ||
+        token.upgradedToPermanent
+      ) {
         return true;
       }
       // 手动导入的token按原逻辑处理（24小时过期）
@@ -1050,7 +1054,12 @@ export const useTokenStore = defineStore("tokens", () => {
   // 将现有token升级为长期有效
   const upgradeTokenToPermanent = (tokenId: string) => {
     const token = gameTokens.value.find((t) => t.id === tokenId);
-    if (token && !token.upgradedToPermanent && token.importMethod !== "url" && token.importMethod !== "bin") {
+    if (
+      token &&
+      !token.upgradedToPermanent &&
+      token.importMethod !== "url" &&
+      token.importMethod !== "bin"
+    ) {
       updateToken(tokenId, {
         upgradedToPermanent: true,
         upgradedAt: new Date().toISOString(),
@@ -1248,8 +1257,8 @@ export const useTokenStore = defineStore("tokens", () => {
     //   selectedTokenId.value = savedSelectedId
     // }
 
-    // 清理过期token
-    cleanExpiredTokens();
+    // 清理过期token。清理了就得重新导入bin了，不要清理！！！！！！
+    // cleanExpiredTokens();
     // 启动连接监控
     connectionMonitor.startMonitoring();
 
