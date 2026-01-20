@@ -22,11 +22,10 @@ export const emitPlus = (
   event: string | symbol,
   ...args: Array<any>
 ): boolean => {
-  if (events.has(event as string)) {
-    return $emit.emit(event, ...args);
-  } else {
-    return $emit.emit("$any", event, ...args);
-  }
+  // 先触发具体事件，然后触发$any事件
+  const result = $emit.emit(event, ...args);
+  $emit.emit("$any", event, ...args);
+  return result;
 };
 
 export interface Session {
@@ -57,6 +56,11 @@ StudyPlugin({
 
 onSome(["_sys/ack"], (data: Session) => {});
 
+// 俱乐部申请列表响应
+onSome(["legion_applylistresp"], (data: Session) => {
+  gameLogger.debug(`收到俱乐部申请列表响应: ${data.tokenId}`, data.body);
+});
+
 // omail_newmailnotify   邮件
 
 onSome(
@@ -85,18 +89,18 @@ onSome(["role_getroleinforesp", "role_getroleinfo"], (data: Session) => {
   const tokenStore = useTokenStore();
   const token = tokenStore.gameTokens.find(t => t.id === tokenId);
   if (token) {
-    // 提取游戏名称和服务器信息（根据实际数据结构调整字段名）
-    const gameName = body?.role?.name || body?.name || token.name;
     // 优先使用serverName字段获取服务器信息
-    const server = body?.role?.serverName || body?.serverName || body?.role?.server || body?.server || token.server;
+    const server = body?.role?.serverName || body?.serverName || body?.role?.server || body?.server;
     
-    // 更新token信息
-    tokenStore.updateToken(tokenId, {
-      name: gameName,
-      server: server
-    });
-    
-    gameLogger.verbose(`已更新Token ${tokenId} 的游戏名称和服务器信息`, { gameName, server });
+    // 只有当服务器信息实际发生变化时才更新，避免循环触发
+    if (server && server !== token.server) {
+      // 更新token信息
+      tokenStore.updateToken(tokenId, {
+        server: server
+      });
+      
+      gameLogger.verbose(`已更新Token ${tokenId} 的服务器信息`, { server });
+    }
   }
 });
 
