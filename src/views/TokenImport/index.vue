@@ -256,10 +256,6 @@
               <div class="storage-info">
                 <div class="storage-item">
                   <span class="storage-label">存储类型：</span>
-<<<<<<< HEAD
-                  <n-tag size="small" :type="token.importMethod === 'url' ? 'success' : 'warning'">
-                    {{ token.importMethod === "url" ? "长期有效" : "临时存储" }}
-=======
                   <n-tag
                     size="small"
                     :type="
@@ -279,7 +275,6 @@
                         ? "长期有效"
                         : "临时存储"
                     }}
->>>>>>> pr
                   </n-tag>
                 </div>
 
